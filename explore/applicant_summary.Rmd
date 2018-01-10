@@ -1,0 +1,175 @@
+---
+title: "PGY1 Applicant Summary"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(DT)
+library(sparkline)
+library(themebg)
+
+raw_apps <- read_csv("../data/raw/pgy1_application_scores.csv") %>%
+    filter(!(last_name %in% c("Ju", "Kessinger", "Rakouki", "Zidaru")))
+
+data_demog <- raw_apps %>%
+    select(cas_id:last_name, 
+           school = pharmacy_school_name_0, 
+           gpa = pharmacy_school_gpa_0,
+           interest_1 = custom_field_interest_1,
+           interest_2 = custom_field_interest_2,
+           interest_3 = custom_field_interest_3,
+           school_score = custom_field_school_score,
+           tmc_lor = `custom_field_mh-tmc_rec`) %>%
+    mutate_at("tmc_lor", funs(. == "Y"))
+
+data_app_scores <- raw_apps %>%
+    select(cas_id, starts_with("assignment")) %>%
+    gather(key = key, value = value, -cas_id) %>%
+    mutate_at("key", str_replace_all, pattern = "assignment.{0,1}_application_scoring_", replacement = "") %>%
+    separate(key, c("key", "n"), sep = "_") %>%
+    spread(key, value) %>%
+    mutate_at("remark", str_extract, pattern = "[0-9]") %>%
+    mutate_at(c("remark", "score"), as.numeric) %>%
+    filter(!is.na(score)) 
+
+data_vidyo_scores <- raw_apps %>%
+    select(cas_id, starts_with("interview")) %>%
+    gather(key = key, value = value, -cas_id) %>%
+    mutate_at("key", str_replace_all, pattern = "interview_vidyo_interview_", replacement = "") %>%
+    separate(key, c("key", "n"), sep = "_") %>%
+    spread(key, value) %>%
+    mutate_at("remarks", str_extract, pattern = "[0-9]") %>%
+    mutate_at(c("remarks", "score"), as.numeric) %>%
+    filter(!is.na(score)) 
+    
+data_ref <- raw_apps %>%
+    select(cas_id, starts_with("reference")) %>%
+    gather(key = key, value = value, -cas_id) %>%
+    mutate_at("key", str_replace_all, pattern = "reference_overall_", replacement = "") %>%
+    separate(key, c("key", "n"), sep = "_") %>%
+    spread(key, value) %>%
+    filter(!is.na(rating))
+```
+
+```{r, fig.height=9}
+all_app_median <- data_app_scores %>%
+    summarize_at(c("remark", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
+
+app_median <- data_app_scores %>%
+    group_by(cas_id) %>%
+    summarize_at(c("remark", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75))) %>%
+    arrange(desc(score_median), desc(remark_median)) %>%
+    left_join(data_demog[c("cas_id", "first_name", "last_name")], by = "cas_id") %>%
+    mutate(app_name = str_c(last_name, first_name, sep = ", ")) %>%
+    mutate_at("app_name", as_factor)
+
+data_demog %>%
+    select(cas_id:last_name) %>%
+    left_join(data_app_scores, by = "cas_id") %>%
+    mutate(app_name = str_c(last_name, first_name, sep = ", ")) %>%
+    mutate_at("app_name", factor, levels = levels(app_median$app_name)) %>%
+    mutate_at("app_name", fct_rev) %>%
+    ggplot(aes(x = app_name, y = score)) +
+    geom_boxplot() +
+    geom_point(aes(color = reviewer)) +
+    geom_hline(yintercept = all_app_median$score_median, color = "grey65") +
+    xlab(NULL) +
+    coord_flip() +
+    theme_bg()
+```
+
+```{r, fig.height=9}
+app_median %>%
+    mutate_at("app_name", fct_rev) %>%
+    ggplot(aes(x = app_name, y = score_median)) +
+    geom_point() +
+    geom_hline(yintercept = all_app_median$score_median, color = "grey65") +
+    xlab(NULL) +
+    coord_flip() +
+    theme_bg()
+```
+
+```{r, fig.height=9}
+data_app_scores %>%
+    group_by(cas_id) %>%
+    summarize_at(c("remark", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75))) %>%
+    arrange(desc(remark_median), desc(score_median)) %>%
+    left_join(data_demog[c("cas_id", "first_name", "last_name")], by = "cas_id") %>%
+    mutate(app_name = str_c(last_name, first_name, sep = ", ")) %>%
+    mutate_at("app_name", as_factor) %>%
+    mutate_at("app_name", fct_rev) %>%
+    ggplot(aes(x = app_name, y = remark_median)) +
+    geom_point() +
+    geom_hline(yintercept = all_app_median$remark_median, color = "grey65") +
+    xlab(NULL) +
+    coord_flip() +
+    theme_bg()
+```
+
+```{r, fig.height=9}
+all_vidyo_median <- data_vidyo_scores %>%
+    summarize_at(c("remarks", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
+
+vidyo_median <- data_vidyo_scores %>%
+    group_by(cas_id) %>%
+    summarize_at(c("remarks", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75))) %>%
+    arrange(desc(score_median), desc(remarks_median)) %>%
+    left_join(data_demog[c("cas_id", "first_name", "last_name")], by = "cas_id") %>%
+    mutate(app_name = str_c(last_name, first_name, sep = ", ")) %>%
+    mutate_at("app_name", as_factor)
+
+data_demog %>%
+    select(cas_id:last_name) %>%
+    left_join(data_vidyo_scores, by = "cas_id") %>%
+    mutate(app_name = str_c(last_name, first_name, sep = ", ")) %>%
+    mutate_at("app_name", factor, levels = levels(vidyo_median$app_name)) %>%
+    mutate_at("app_name", fct_rev) %>%
+    ggplot(aes(x = app_name, y = score)) +
+    geom_boxplot() +
+    geom_point(aes(color = interviewer)) +
+    geom_hline(yintercept = all_vidyo_median$score_median, color = "grey65") +
+    xlab(NULL) +
+    coord_flip() +
+    theme_bg()
+```
+
+```{r, fig.height=9}
+app_median <- data_app_scores %>%
+    group_by(cas_id) %>%
+    summarize_at(c("remark", "score"), funs(app_median = median, app_p25 = quantile(., 0.25), app_p75 = quantile(., 0.75)))
+
+vidyo_median <- data_vidyo_scores %>%
+    group_by(cas_id) %>%
+    summarize_at(c("remarks", "score"), funs(vid_median = median, vid_p25 = quantile(., 0.25), vid_p75 = quantile(., 0.75)))
+
+total_score <- data_demog %>%
+    left_join(app_median, by = "cas_id") %>%
+    left_join(vidyo_median, by = "cas_id") %>%
+    group_by(cas_id) %>%
+    mutate(score = sum(score_vid_median, score_app_median, na.rm = TRUE)) %>%
+    arrange(desc(score), desc(score_app_median))
+
+total_median <- median(total_score$score)
+
+total_score %>%
+    mutate(app_name = str_c(last_name, first_name, sep = ", ")) %>%
+    ungroup() %>%
+    mutate_at("app_name", as_factor) %>%
+    mutate_at("app_name", fct_rev) %>%
+    # select(app_name, score, score_app_median, score_vid_median) %>%
+    # gather(key, value, -app_name) %>%
+    ggplot(aes(x = app_name, y = score)) +
+    geom_point() +
+    # geom_point(aes(color = reviewer)) +
+    geom_hline(yintercept = total_median, color = "grey65") +
+    xlab(NULL) +
+    coord_flip() +
+    theme_bg()
+
+```
+
