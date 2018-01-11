@@ -3,6 +3,12 @@ title: "PGY1 Applicant Summary"
 output: html_document
 ---
 
+<style>
+    body .main-container {
+        max-width: 100%;
+    }
+</style>
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
@@ -56,7 +62,111 @@ data_ref <- raw_apps %>%
     filter(!is.na(rating))
 ```
 
-```{r, fig.height=9}
+```{r}
+all_app_median <- data_app_scores %>%
+    summarize_at(c("remark", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
+
+app_median <- data_app_scores %>%
+    group_by(cas_id) %>%
+    summarize_at(c("remark", "score"), funs(app_median = median, app_p25 = quantile(., 0.25), app_p75 = quantile(., 0.75)))
+
+all_vidyo_median <- data_vidyo_scores %>%
+    summarize_at(c("remarks", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
+
+vidyo_median <- data_vidyo_scores %>%
+    group_by(cas_id) %>%
+    summarize_at(c("remarks", "score"), funs(vid_median = median, vid_p25 = quantile(., 0.25), vid_p75 = quantile(., 0.75)))
+
+df_app_score <- data_app_scores %>%
+    select(-reviewer, -remark) %>%
+    spread(n, score) %>%
+    unite(comb_a_score, `0`:`2`, sep = ",") %>%
+    mutate_at("comb_a_score", str_replace_all, pattern = ",{0,1}NA", replacement = "")
+
+df_app_remark <- data_app_scores %>%
+    select(-reviewer, -score) %>%
+    spread(n, remark) %>%
+    unite(comb_a_remark, `0`:`2`, sep = ",") %>%
+    mutate_at("comb_a_remark", str_replace_all, pattern = ",{0,1}NA", replacement = "")
+
+df_vidyo_score <- data_vidyo_scores %>%
+    select(-interviewer, -remarks) %>%
+    spread(n, score) %>%
+    unite(comb_v_score, `0`:`1`, sep = ",") %>%
+    mutate_at("comb_v_score", str_replace_all, pattern = ",{0,1}NA", replacement = "")
+
+df_vidyo_remark <- data_vidyo_scores %>%
+    select(-interviewer, -score) %>%
+    spread(n, remarks) %>%
+    unite(comb_v_remark, `0`:`1`, sep = ",") %>%
+    mutate_at("comb_v_remark", str_replace_all, pattern = ",{0,1}NA", replacement = "")
+
+df_remark <- data_vidyo_scores %>%
+    select(cas_id, remark = remarks) %>%
+    bind_rows(data_app_scores[c("cas_id", "remark")]) %>%
+    group_by(cas_id) %>%
+    summarize_at("remark", str_c, collapse = ",") %>%
+    rename(comb_remark_all = remark)
+
+total_score <- data_demog %>%
+    left_join(app_median, by = "cas_id") %>%
+    left_join(vidyo_median, by = "cas_id") %>%
+    left_join(df_app_score, by = "cas_id") %>%
+    left_join(df_app_remark, by = "cas_id") %>%
+    left_join(df_vidyo_score, by = "cas_id") %>%
+    left_join(df_vidyo_remark, by = "cas_id") %>%
+    left_join(df_remark, by = "cas_id") %>%
+    group_by(cas_id) %>%
+    mutate(app_name = str_c(last_name, first_name, sep = ", "),
+           score = sum(score_vid_median, score_app_median, na.rm = TRUE)) %>%
+    arrange(desc(score), desc(score_app_median))
+
+total_median <- total_score %>%
+    ungroup() %>%
+    summarize_at("score", funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
+
+```
+
+```{r}
+# bullet chart - total score
+# box plots - app scores/remarks, vidyo scores/remarks
+# adjust for reviewer variability?
+# tristate for recommendations
+
+col_def <- list(
+    list(targets = 5, render = JS("function(data, type, full){ return '<span class=spark_bullet>' + data + '</span>' }")),
+    list(targets = 6, render = JS("function(data, type, full){ return '<span class=spark_box_remark>' + data + '</span>' }")),
+    list(targets = 8, render = JS("function(data, type, full){ return '<span class=spark_box_a>' + data + '</span>' }")),
+    list(targets = 10, render = JS("function(data, type, full){ return '<span class=spark_box_v>' + data + '</span>' }"))
+)
+
+cb_line <- JS(paste0("function (oSettings, json) { $('.spark_box_a:not(:has(canvas))').sparkline('html', { type: 'box', width: '100px', chartRangeMin: 0, chartRangeMax: 40, target: ", all_app_median$score_median, " });\n $('.spark_box_v:not(:has(canvas))').sparkline('html', { type: 'box', width: '100px', chartRangeMin: 0, chartRangeMax: 40, target: ", all_vidyo_median$score_median, " });\n $('.spark_box_remark:not(:has(canvas))').sparkline('html', { type: 'box', width: '100px', chartRangeMin: 0, chartRangeMax: 8, target: 4 });\n $('.spark_bullet:not(:has(canvas))').sparkline('html', { type: 'bullet', width: '100px', chartRangeMin: 0, chartRangeMax: 75});}"), 
+    collapse = "")
+
+df <- total_score %>%
+    ungroup() %>%
+    mutate(score_bullet = str_c(total_median$median, score, 60, total_median$p75, total_median$p25, sep = ",")) %>%
+    # unite(remark_all) %>%
+    select(app_name, school, gpa, score, score_bullet, comb_remark_all, score_app_median, comb_a_score, score_vid_median, comb_v_score, interest_1, interest_2, interest_3) %>%
+    datatable(extensions = c("RowReorder", "FixedHeader"),
+              filter = "top",
+              options = list(
+                  dom = "lfrtip",
+                  rowReorder = TRUE,
+                  fixedHeader = TRUE,
+                  pageLength = 100,
+                  columnDefs = col_def, 
+                  fnDrawCallback = cb_line)
+              )
+
+df$dependencies <- append(df$dependencies, htmlwidgets:::getDependency("sparkline"))
+
+df
+
+```
+
+
+```{r, fig.height=9, eval=FALSE}
 all_app_median <- data_app_scores %>%
     summarize_at(c("remark", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
 
@@ -83,7 +193,7 @@ data_demog %>%
     theme_bg()
 ```
 
-```{r, fig.height=9}
+```{r, fig.height=9, eval=FALSE}
 app_median %>%
     mutate_at("app_name", fct_rev) %>%
     ggplot(aes(x = app_name, y = score_median)) +
@@ -94,7 +204,7 @@ app_median %>%
     theme_bg()
 ```
 
-```{r, fig.height=9}
+```{r, fig.height=9, eval=FALSE}
 data_app_scores %>%
     group_by(cas_id) %>%
     summarize_at(c("remark", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75))) %>%
@@ -111,7 +221,7 @@ data_app_scores %>%
     theme_bg()
 ```
 
-```{r, fig.height=9}
+```{r, fig.height=9, eval=FALSE}
 all_vidyo_median <- data_vidyo_scores %>%
     summarize_at(c("remarks", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
 
@@ -138,7 +248,7 @@ data_demog %>%
     theme_bg()
 ```
 
-```{r, fig.height=9}
+```{r, fig.height=9, eval=FALSE}
 app_median <- data_app_scores %>%
     group_by(cas_id) %>%
     summarize_at(c("remark", "score"), funs(app_median = median, app_p25 = quantile(., 0.25), app_p75 = quantile(., 0.75)))
@@ -151,7 +261,8 @@ total_score <- data_demog %>%
     left_join(app_median, by = "cas_id") %>%
     left_join(vidyo_median, by = "cas_id") %>%
     group_by(cas_id) %>%
-    mutate(score = sum(score_vid_median, score_app_median, na.rm = TRUE)) %>%
+    mutate(app_name = str_c(last_name, first_name, sep = ", "),
+           score = sum(score_vid_median, score_app_median, na.rm = TRUE)) %>%
     arrange(desc(score), desc(score_app_median))
 
 total_median <- median(total_score$score)
