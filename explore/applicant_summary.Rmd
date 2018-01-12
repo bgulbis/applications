@@ -31,7 +31,8 @@ data_demog <- raw_apps %>%
            interest_3 = custom_field_interest_3,
            school_score = custom_field_school_score,
            tmc_lor = `custom_field_mh-tmc_rec`) %>%
-    mutate_at("tmc_lor", funs(. == "Y"))
+    mutate_at("tmc_lor", funs(. == "Y")) %>%
+    mutate_at(c("interest_1", "interest_2", "interest_3"), str_replace_all, pattern = "Not Specified", replacement = "")
 
 data_app_scores <- raw_apps %>%
     select(cas_id, starts_with("assignment")) %>%
@@ -150,6 +151,7 @@ df <- total_score %>%
     select(app_name, school, gpa, score, score_bullet, comb_remark_all, score_app_median, comb_a_score, score_vid_median, comb_v_score, interest_1, interest_2, interest_3) %>%
     datatable(extensions = c("RowReorder", "FixedHeader"),
               filter = "top",
+              colnames = c("Rank", "Name", "School", "GPA", "Total", "Total", "Fit", "App Med", "App Scores", "Vid Med", "Vid Scores", "Interest", "Interest", "Interest"),
               options = list(
                   dom = "lfrtip",
                   rowReorder = TRUE,
