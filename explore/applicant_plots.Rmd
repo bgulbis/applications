@@ -466,3 +466,78 @@ data_vidyo_scores %>%
 
 ```
 
+### Reviewer Scores
+
+```{r}
+app_reviewer_med %>%
+    arrange(score_app_rev_median) %>%
+    mutate_at("reviewer", as_factor) %>%
+    plot_ly(width = 600, height = 400) %>%
+    add_bars(x = ~score_app_rev_median, y = ~ reviewer) %>%
+    layout(title = "Median Application Score by Reviewer",
+           margin = list(l = 150),
+           xaxis = list(title = "Score",
+                        showgrid = FALSE,
+                        showline = TRUE,
+                        color = plot_col, 
+                        titlefont = list(color = font_col),
+                        tickfont = list(color = font_col),
+                        tickcolor = plot_col),
+           yaxis = list(title = "",
+                        showgrid = FALSE,
+                        showline = TRUE,
+                        color = plot_col, 
+                        titlefont = list(color = font_col),
+                        tickfont = list(color = font_col),
+                        ticks = "outside",
+                        tickcolor = plot_col),
+           shapes = list(
+               list(type = "line", 
+                    layer = "below",
+                    x0 = all_app_median$score_median, 
+                    x1 = all_app_median$score_median, 
+                    yref = "paper",
+                    y0 = 0, 
+                    y1 = 1,
+                    line = list(color = plot_col, 
+                                width = 1)))
+    )
+```
+
+### Interviewer Scores
+
+```{r}
+vid_reviewer_med %>%
+    arrange(score_vid_rev_median) %>%
+    mutate_at("interviewer", as_factor) %>%
+    plot_ly(width = 600, height = 400) %>%
+    add_bars(x = ~score_vid_rev_median, y = ~ interviewer) %>%
+    layout(title = "Median Interview Score by Reviewer",
+           margin = list(l = 150),
+           xaxis = list(title = "Score",
+                        showgrid = FALSE,
+                        showline = TRUE,
+                        color = plot_col, 
+                        titlefont = list(color = font_col),
+                        tickfont = list(color = font_col),
+                        tickcolor = plot_col),
+           yaxis = list(title = "",
+                        showgrid = FALSE,
+                        showline = TRUE,
+                        color = plot_col, 
+                        titlefont = list(color = font_col),
+                        tickfont = list(color = font_col),
+                        ticks = "outside",
+                        tickcolor = plot_col),
+           shapes = list(
+               list(type = "line", 
+                    layer = "below",
+                    x0 = all_vidyo_median$score_median, 
+                    x1 = all_vidyo_median$score_median, 
+                    yref = "paper",
+                    y0 = 0, 
+                    y1 = 1,
+                    line = list(color = plot_col, 
+                                width = 1)))
+    )
+```
