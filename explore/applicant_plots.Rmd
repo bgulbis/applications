@@ -385,3 +385,84 @@ data_vidyo_scores %>%
 
 ```
 
+### Fit Scores
+
+```{r}
+all_fit_median <- data_vidyo_scores %>%
+    select(cas_id, remark = remarks) %>%
+    bind_rows(data_app_scores[c("cas_id", "remark")]) %>%
+    summarize_at("remark", funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
+
+data_vidyo_scores %>%
+    select(cas_id, remark = remarks) %>%
+    bind_rows(data_app_scores[c("cas_id", "remark")]) %>%
+    left_join(data_demog[c("cas_id", "first_name", "last_name")], by = "cas_id") %>%
+    mutate(app_name = str_c(last_name, first_name, sep = ", ")) %>%
+    ungroup() %>%
+    mutate_at("app_name", factor, levels = total_score$app_name) %>%
+    mutate_at("app_name", fct_rev) %>%
+    plot_ly(width = 900, height = 700) %>%
+    add_boxplot(x = ~remark, y = ~app_name) %>%
+    layout(title = "Fit Score Distribution",
+           margin = list(l = 180),
+           xaxis = list(title = "Score",
+                        showgrid = FALSE,
+                        showline = TRUE,
+                        color = plot_col, 
+                        titlefont = list(color = font_col),
+                        tickfont = list(color = font_col),
+                        tickcolor = plot_col),
+           yaxis = list(title = "",
+                        showgrid = FALSE,
+                        showline = TRUE,
+                        range = list(nrow(total_score) - 40, nrow(total_score)),
+                        color = plot_col, 
+                        titlefont = list(color = font_col),
+                        tickfont = list(color = font_col),
+                        ticks = "outside",
+                        tickcolor = plot_col),
+           shapes = list(
+               list(type = "line", 
+                    layer = "below",
+                    x0 = all_fit_median$median, 
+                    x1 = all_fit_median$median, 
+                    yref = "paper",
+                    y0 = 0, 
+                    y1 = 1,
+                    line = list(color = plot_col, 
+                                width = 1)),
+               list(type = "line", 
+                    layer = "below",
+                    x0 = all_fit_median$p25, 
+                    x1 = all_fit_median$p25, 
+                    yref = "paper",
+                    y0 = 0, 
+                    y1 = 1,
+                    line = list(color = plot_col, 
+                                width = 1, 
+                                dash = "dash")),
+               list(type = "line", 
+                    layer = "below",
+                    x0 = all_fit_median$p75, 
+                    x1 = all_fit_median$p75, 
+                    yref = "paper",
+                    y0 = 0, 
+                    y1 = 1,
+                    line = list(color = plot_col, 
+                                width = 1, 
+                                dash = "dash")),
+               list(type = "line", 
+                    layer = "below",
+                    xref = "paper",
+                    x0 = 0, 
+                    x1 = 1, 
+                    yref = "y",
+                    y0 = nrow(total_score) - 28, 
+                    y1 = nrow(total_score) - 28,
+                    line = list(color = plot_col, 
+                                width = 1, 
+                                dash = "dash"))
+           ))
+
+```
+
