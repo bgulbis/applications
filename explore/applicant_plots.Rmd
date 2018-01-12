@@ -86,7 +86,7 @@ app_median <- data_app_scores %>%
     left_join(app_reviewer_med[c("reviewer", "app_score_adj")], by = "reviewer") %>%
     mutate(score_adj = score + app_score_adj) %>%
     group_by(cas_id) %>%
-    summarize_at(c("remark", "score", "score_adj"), funs(app_median = median, app_p25 = quantile(., 0.25), app_p75 = quantile(., 0.75)))
+    summarize_at(c("remark", "score", "score_adj"), funs(app_median = median, app_p25 = quantile(., 0.25), app_p75 = quantile(., 0.75))) 
 
 all_vidyo_median <- data_vidyo_scores %>%
     summarize_at(c("remarks", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
@@ -172,7 +172,7 @@ total_score %>%
     add_markers(x = ~score_adj, y = ~app_name) %>%
     layout(title = "Total Score",
            margin = list(l = 180),
-           xaxis = list(title = "Total Score",
+           xaxis = list(title = "Score",
                         showgrid = FALSE,
                         showline = TRUE,
                         color = plot_col, 
@@ -236,26 +236,19 @@ total_score %>%
 ### Application Score
 
 ```{r}
-app40 <- app_median %>%
-    arrange(desc(score_adj_app_median), desc(remark_app_median)) %>%
-    top_n(40, score_adj_app_median) %>%
-    left_join(data_demog[c("cas_id", "first_name", "last_name")], by = "cas_id") %>%
-    mutate(app_name = str_c(last_name, first_name, sep = ", "))
-
 data_app_scores %>%
-    inner_join(app40[c("cas_id", "app_name")], by = "cas_id") %>%
+    left_join(data_demog[c("cas_id", "first_name", "last_name")], by = "cas_id") %>%
     left_join(app_reviewer_med[c("reviewer", "app_score_adj")], by = "reviewer") %>%
-    mutate(score_adj = score + app_score_adj) %>%
+    mutate(score_adj = score + app_score_adj,
+           app_name = str_c(last_name, first_name, sep = ", ")) %>%
     ungroup() %>%
-    mutate_at("app_name", factor, levels = app40$app_name) %>%
+    mutate_at("app_name", factor, levels = total_score$app_name) %>%
     mutate_at("app_name", fct_rev) %>%
-    plot_ly() %>%
+    plot_ly(width = 900, height = 700) %>%
     add_boxplot(x = ~score_adj, y = ~app_name) %>%
-    layout(width = 900, 
-           height = 700,
-           title = "Application Score Distribution Among Top 40 Applicants",
+    layout(title = "Application Score Distribution",
            margin = list(l = 180),
-           xaxis = list(title = "Total Score",
+           xaxis = list(title = "Score",
                         showgrid = FALSE,
                         showline = TRUE,
                         color = plot_col, 
@@ -265,6 +258,7 @@ data_app_scores %>%
            yaxis = list(title = "",
                         showgrid = FALSE,
                         showline = TRUE,
+                        range = list(nrow(total_score) - 40, nrow(total_score)),
                         color = plot_col, 
                         titlefont = list(color = font_col),
                         tickfont = list(color = font_col),
@@ -282,6 +276,16 @@ data_app_scores %>%
                                 width = 1)),
                list(type = "line", 
                     layer = "below",
+                    x0 = all_app_median$score_p25, 
+                    x1 = all_app_median$score_p25, 
+                    yref = "paper",
+                    y0 = 0, 
+                    y1 = 1,
+                    line = list(color = plot_col, 
+                                width = 1, 
+                                dash = "dash")),
+               list(type = "line", 
+                    layer = "below",
                     x0 = all_app_median$score_p75, 
                     x1 = all_app_median$score_p75, 
                     yref = "paper",
@@ -296,8 +300,8 @@ data_app_scores %>%
                     x0 = 0, 
                     x1 = 1, 
                     yref = "y",
-                    y0 = nrow(app40) - 28, 
-                    y1 = nrow(app40) - 28, 
+                    y0 = nrow(total_score) - 28, 
+                    y1 = nrow(total_score) - 28, 
                     line = list(color = plot_col, 
                                 width = 1, 
                                 dash = "dash"))
@@ -308,26 +312,19 @@ data_app_scores %>%
 ### Interview Score
 
 ```{r}
-vid40 <- vidyo_median %>%
-    arrange(desc(score_adj_vid_median), desc(remarks_vid_median)) %>%
-    top_n(40, score_adj_vid_median) %>%
-    left_join(data_demog[c("cas_id", "first_name", "last_name")], by = "cas_id") %>%
-    mutate(app_name = str_c(last_name, first_name, sep = ", "))
-
 data_vidyo_scores %>%
-    inner_join(vid40[c("cas_id", "app_name")], by = "cas_id") %>%
+    left_join(data_demog[c("cas_id", "first_name", "last_name")], by = "cas_id") %>%
     left_join(vid_reviewer_med[c("interviewer", "vid_score_adj")], by = "interviewer") %>%
-    mutate(score_adj = score + vid_score_adj) %>%
+    mutate(score_adj = score + vid_score_adj,
+           app_name = str_c(last_name, first_name, sep = ", ")) %>%
     ungroup() %>%
-    mutate_at("app_name", factor, levels = vid40$app_name) %>%
+    mutate_at("app_name", factor, levels = total_score$app_name) %>%
     mutate_at("app_name", fct_rev) %>%
-    plot_ly() %>%
+    plot_ly(width = 900, height = 700) %>%
     add_boxplot(x = ~score_adj, y = ~app_name) %>%
-    layout(width = 900, 
-           height = 700,
-           title = "Interview Score Distribution Among Top 40 Applicants",
+    layout(title = "Interview Score Distribution",
            margin = list(l = 180),
-           xaxis = list(title = "Total Score",
+           xaxis = list(title = "Score",
                         showgrid = FALSE,
                         showline = TRUE,
                         color = plot_col, 
@@ -337,6 +334,7 @@ data_vidyo_scores %>%
            yaxis = list(title = "",
                         showgrid = FALSE,
                         showline = TRUE,
+                        range = list(nrow(total_score) - 40, nrow(total_score)),
                         color = plot_col, 
                         titlefont = list(color = font_col),
                         tickfont = list(color = font_col),
@@ -354,6 +352,16 @@ data_vidyo_scores %>%
                                 width = 1)),
                list(type = "line", 
                     layer = "below",
+                    x0 = all_vidyo_median$score_p25, 
+                    x1 = all_vidyo_median$score_p25, 
+                    yref = "paper",
+                    y0 = 0, 
+                    y1 = 1,
+                    line = list(color = plot_col, 
+                                width = 1, 
+                                dash = "dash")),
+               list(type = "line", 
+                    layer = "below",
                     x0 = all_vidyo_median$score_p75, 
                     x1 = all_vidyo_median$score_p75, 
                     yref = "paper",
@@ -368,8 +376,8 @@ data_vidyo_scores %>%
                     x0 = 0, 
                     x1 = 1, 
                     yref = "y",
-                    y0 = nrow(vid40) - 28, 
-                    y1 = nrow(vid40) - 28,
+                    y0 = nrow(total_score) - 28, 
+                    y1 = nrow(total_score) - 28,
                     line = list(color = plot_col, 
                                 width = 1, 
                                 dash = "dash"))
