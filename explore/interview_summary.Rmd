@@ -141,6 +141,12 @@ data_interview_scores <- raw_apps %>%
     separate(key, c("group", "key", "n"), sep = "_") %>%
     spread(key, value) %>%
     filter(!is.na(interviewer)) %>%
+    mutate_at(
+        "remarks",
+        str_replace_all,
+        pattern = "MMI 1-2",
+        replacement = "MMI"
+    ) %>%
     mutate_at("remarks", str_extract, pattern = "[0-9]") %>%
     mutate_at(c("remarks", "score"), as.numeric) %>%
     filter(!is.na(score)) 
@@ -175,68 +181,303 @@ data_ref <- raw_apps %>%
 ```
 
 ```{r}
+make_bullet <- function(med, x, p75, p25, group) {
+    lim <- case_when(
+        group == "total" ~ 100,
+        group == "leadership" ~ 35,
+        group == "preceptor" ~ 35,
+        group == "mmi" ~ 14,
+        group == "residents" ~ 28
+    )
+    
+    spk_chr(
+        values = c(med, x, lim, p75, p25),
+        type = "bullet",
+        width = 100,
+        chartRangeMin = 0,
+        chartRangeMax = 100
+    )
+}
+
+median_quant <- function(x, cols = c("remarks", "score")) {
+    summarize_at(
+        x,
+        cols, 
+        funs(
+            median, 
+            p25 = quantile(., 0.25),
+            p75 = quantile(., 0.75)
+        ),
+        na.rm = TRUE
+    )
+}
+
+```
+
+
+```{r}
+
+all_interview_median <- data_interview_scores %>%
+    group_by(group) %>%
+    median_quant() %>%
+    rename(
+        remarks_all_median = remarks_median,
+        score_all_median = score_median
+    )
+
+all_interviewer_med <- data_interview_scores %>%
+    group_by(group, interviewer) %>%
+    median_quant() %>%
+    left_join(
+        all_interview_median[c("group", "score_all_median")],
+        by = "group"
+    ) %>%
+    mutate(int_score_adj = (score_all_median - score_median) * 0.5)
+
+int_median <- data_interview_scores %>%
+    left_join(
+        all_interviewer_med[c("interviewer", "int_score_adj")], 
+        by = "interviewer"
+    ) %>%
+    mutate(score.adj = score + int_score_adj) %>%
+    group_by(cas_id, group) %>%
+    summarize_at("score.adj", median, na.rm = TRUE) %>%
+    spread(group, score.adj) %>%
+    mutate(
+        total = sum(
+            leadership, 
+            mmi, 
+            preceptor, 
+            residents, 
+            na.rm = TRUE
+        )
+    )
+
+int_totals <- int_median %>%
+    ungroup() %>%
+    median_quant(
+        c(
+            "leadership", 
+            "mmi", 
+            "preceptor", 
+            "residents", 
+            "total"
+        )
+    ) %>%
+    gather(key, value) %>%
+    separate(key, c("group", "key"), sep = "_") %>%
+    spread(key, value)
+    
+df_bullet <- int_median %>%
+    gather(group, value, -cas_id) %>%
+    left_join(int_totals, by = "group") %>%
+    group_by(cas_id, group) %>%
+    mutate(bullet = make_bullet(median, value, p25, p75, group)) %>%
+    select(-(value:p75)) %>%
+    spread(group, bullet) %>%
+    ungroup() %>%
+    rename_if(is.character, funs(paste0("bullet_", .)))
+    
+```
+
+```{r}
+data_demog %>%
+    left_join(int_median, by = "cas_id") %>%
+    left_join(df_bullet, by = "cas_id") %>%
+    mutate(full_name = paste(last_name, first_name, sep = ", ")) %>%
+    select(
+        full_name,
+        school_abbrev,
+        total,
+        bullet_total,
+        leadership,
+        bullet_leadership,
+        preceptor,
+        bullet_preceptor,
+        mmi,
+        bullet_mmi,
+        residents,
+        bullet_residents
+    ) %>%
+    datatable(
+        caption = "PGY1 Interview Scores",
+        rownames = FALSE,
+        escape = FALSE,
+        colnames = c(
+            "Name", 
+            "School", 
+            "Score", 
+            "Score Comp", 
+            "Leader",
+            "Leader Comp",
+            "Precept", 
+            "Precept Comp",
+            "MMI",
+            "MMI Comp", 
+            "Resident",
+            "Resident Comp"
+        ),
+        extensions = "FixedHeader",
+        options = list(
+            fixedHeader = TRUE,
+            pageLength = 30,
+            order = list(list(2, 'desc')),
+            fnDrawCallback = JS(
+                "function(){ HTMLWidgets.staticRender(); }"
+            )
+        )
+    ) %>%
+    formatRound(
+        c("total", "leadership", "preceptor", "mmi", "residents"),
+        1
+    ) %>%
+    spk_add_deps()
+```
+
+
+```{r, eval=FALSE}
+    
 all_app_median <- data_app_scores %>%
-    summarize_at(c("remark", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
+    summarize_at(
+        c("remark", "score"), 
+        funs(
+            median, 
+            p25 = quantile(., 0.25),
+            p75 = quantile(., 0.75)
+        )
+    )
 
 app_reviewer_med <- data_app_scores %>%
     group_by(reviewer) %>%
-    summarize_at(c("remark", "score"), funs(app_rev_median = median, app_rev_p25 = quantile(., 0.25), app_rev_p75 = quantile(., 0.75))) %>%
+    summarize_at(
+        c("remark", "score"), 
+        funs(
+            app_rev_median = median, 
+            app_rev_p25 = quantile(., 0.25),
+            app_rev_p75 = quantile(., 0.75)
+        )
+    ) %>%
     mutate(app_score_adj = (all_app_median$score_median - score_app_rev_median) * 0.5)
 
 app_median <- data_app_scores %>%
-    left_join(app_reviewer_med[c("reviewer", "app_score_adj")], by = "reviewer") %>%
+    left_join(
+        app_reviewer_med[c("reviewer", "app_score_adj")], 
+        by = "reviewer"
+    ) %>%
     mutate(score_adj = score + app_score_adj) %>%
     group_by(cas_id) %>%
-    summarize_at(c("remark", "score", "score_adj"), funs(app_median = median, app_p25 = quantile(., 0.25), app_p75 = quantile(., 0.75)))
+    summarize_at(
+        c("remark", "score", "score_adj"), 
+        funs(
+            app_median = median, 
+            app_p25 = quantile(., 0.25), 
+            app_p75 = quantile(., 0.75)
+        )
+    )
 
 all_vidyo_median <- data_vidyo_scores %>%
-    summarize_at(c("remarks", "score"), funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
+    summarize_at(
+        c("remarks", "score"), 
+        funs(
+            median, 
+            p25 = quantile(., 0.25), 
+            p75 = quantile(., 0.75)
+        )
+    )
 
 vid_reviewer_med <- data_vidyo_scores %>%
     group_by(interviewer) %>%
-    summarize_at(c("remarks", "score"), funs(vid_rev_median = median, vid_rev_p25 = quantile(., 0.25), vid_rev_p75 = quantile(., 0.75))) %>%
+    summarize_at(
+        c("remarks", "score"), 
+        funs(
+            vid_rev_median = median, 
+            vid_rev_p25 = quantile(., 0.25), 
+            vid_rev_p75 = quantile(., 0.75)
+        )
+    ) %>%
     mutate(vid_score_adj = (all_vidyo_median$score_median - score_vid_rev_median) * 0.5)
     
 vidyo_median <- data_vidyo_scores %>%
-    left_join(vid_reviewer_med[c("interviewer", "vid_score_adj")], by = "interviewer") %>%
+    left_join(
+        vid_reviewer_med[c("interviewer", "vid_score_adj")], 
+        by = "interviewer"
+    ) %>%
     mutate(score_adj = score + vid_score_adj) %>%
     group_by(cas_id) %>%
-    summarize_at(c("remarks", "score", "score_adj"), funs(vid_median = median, vid_p25 = quantile(., 0.25), vid_p75 = quantile(., 0.75)))
+    summarize_at(
+        c("remarks", "score", "score_adj"), 
+        funs(
+            vid_median = median, 
+            vid_p25 = quantile(., 0.25), 
+            vid_p75 = quantile(., 0.75)
+        )
+    )
 
 df_app_score <- data_app_scores %>%
-    left_join(app_reviewer_med[c("reviewer", "app_score_adj")], by = "reviewer") %>%
+    left_join(
+        app_reviewer_med[c("reviewer", "app_score_adj")], 
+        by = "reviewer"
+    ) %>%
     mutate(score_adj = score + app_score_adj) %>%
     select(cas_id, n, score_adj) %>%
     spread(n, score_adj) %>%
     unite(comb_a_score, `0`:`2`, sep = ",") %>%
-    mutate_at("comb_a_score", str_replace_all, pattern = ",{0,1}NA", replacement = "")
+    mutate_at(
+        "comb_a_score", 
+        str_replace_all, 
+        pattern = ",{0,1}NA", 
+        replacement = ""
+    )
 
 df_app_remark <- data_app_scores %>%
     select(-reviewer, -score) %>%
     spread(n, remark) %>%
     unite(comb_a_remark, `0`:`2`, sep = ",") %>%
-    mutate_at("comb_a_remark", str_replace_all, pattern = ",{0,1}NA", replacement = "")
+    mutate_at(
+        "comb_a_remark", 
+        str_replace_all, 
+        pattern = ",{0,1}NA", 
+        replacement = ""
+    )
 
 df_vidyo_score <- data_vidyo_scores %>%
-    left_join(vid_reviewer_med[c("interviewer", "vid_score_adj")], by = "interviewer") %>%
+    left_join(
+        vid_reviewer_med[c("interviewer", "vid_score_adj")], 
+        by = "interviewer"
+    ) %>%
     mutate(score_adj = score + vid_score_adj) %>%
     select(cas_id, n, score_adj) %>%
     spread(n, score_adj) %>%
     unite(comb_v_score, `0`:`1`, sep = ",") %>%
-    mutate_at("comb_v_score", str_replace_all, pattern = ",{0,1}NA", replacement = "")
+    mutate_at(
+        "comb_v_score", 
+        str_replace_all, 
+        pattern = ",{0,1}NA", 
+        replacement = ""
+    )
 
 df_vidyo_remark <- data_vidyo_scores %>%
     select(-interviewer, -score) %>%
     spread(n, remarks) %>%
     unite(comb_v_remark, `0`:`1`, sep = ",") %>%
-    mutate_at("comb_v_remark", str_replace_all, pattern = ",{0,1}NA", replacement = "")
+    mutate_at(
+        "comb_v_remark",
+        str_replace_all, 
+        pattern = ",{0,1}NA", 
+        replacement = ""
+    )
 
 df_remark <- data_vidyo_scores %>%
     select(cas_id, remark = remarks) %>%
     bind_rows(data_app_scores[c("cas_id", "remark")]) %>%
     group_by(cas_id) %>%
-    summarize_at("remark", funs(comb_remark_all = str_c(., collapse = ","), 
-                                low_remarks = sum(. <= 2))) 
+    summarize_at(
+        "remark", 
+        funs(
+            comb_remark_all = str_c(., collapse = ","), 
+            low_remarks = sum(. <= 2)
+        )
+    ) 
 
 total_score <- data_demog %>%
     left_join(app_median, by = "cas_id") %>%
@@ -247,18 +488,31 @@ total_score <- data_demog %>%
     left_join(df_vidyo_remark, by = "cas_id") %>%
     left_join(df_remark, by = "cas_id") %>%
     group_by(cas_id) %>%
-    mutate(app_name = str_c(last_name, first_name, sep = ", "),
-           score = sum(score_vid_median, score_app_median, na.rm = TRUE),
-           score_adj = sum(score_adj_app_median, score_adj_vid_median, na.rm = TRUE)) %>%
-    arrange(desc(score_adj), desc(score_adj_app_median), desc(score_adj_vid_median))
+    mutate(
+        app_name = str_c(last_name, first_name, sep = ", "),
+        score = sum(score_vid_median, score_app_median, na.rm = TRUE),
+        score_adj = sum(score_adj_app_median, score_adj_vid_median, na.rm = TRUE)
+    ) %>%
+    arrange(
+        desc(score_adj), 
+        desc(score_adj_app_median), 
+        desc(score_adj_vid_median)
+    )
 
 total_median <- total_score %>%
     ungroup() %>%
-    summarize_at("score", funs(median, p25 = quantile(., 0.25), p75 = quantile(., 0.75)))
+    summarize_at(
+        "score", 
+        funs(
+            median, 
+            p25 = quantile(., 0.25), 
+            p75 = quantile(., 0.75)
+        )
+    )
 
 ```
 
-```{r}
+```{r, eval=FALSE}
 # bullet chart - total score
 # box plots - app scores/remarks, vidyo scores/remarks
 # adjust for reviewer variability?
