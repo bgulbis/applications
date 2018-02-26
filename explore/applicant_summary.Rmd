@@ -19,7 +19,7 @@ library(DT)
 library(sparkline)
 library(themebg)
 
-raw_apps <- read_csv("../data/raw/pgy1_application_scores.csv") %>%
+raw_apps <- read_csv("../data/raw/2018/pgy1_application_scores.csv") %>%
     filter(!(last_name %in% c("Ju", "Kessinger", "Rakouki", "Zidaru")))
 
 data_demog <- raw_apps %>%
