@@ -193,7 +193,7 @@ make_bullet <- function(med, x, p75, p25, group) {
     spk_chr(
         values = c(med, x, lim, p75, p25),
         type = "bullet",
-        width = 100,
+        width = 75,
         chartRangeMin = 0,
         chartRangeMax = 100
     )
@@ -272,24 +272,42 @@ df_bullet <- int_median %>%
     gather(group, value, -cas_id) %>%
     left_join(int_totals, by = "group") %>%
     group_by(cas_id, group) %>%
-    mutate(bullet = make_bullet(median, value, p25, p75, group)) %>%
+    mutate(bullet = make_bullet(median, value, p75, p25, group)) %>%
     select(-(value:p75)) %>%
     spread(group, bullet) %>%
     ungroup() %>%
     rename_if(is.character, funs(paste0("bullet_", .)))
+
+df_fit <- data_interview_scores %>%
+    group_by(cas_id) %>%
+    summarize_at(
+        "remarks",
+        funs(
+            spk_chr(
+                values = .,
+                type = "box",
+                width = 75,
+                target = 4,
+                chartRangeMin = 0,
+                chartRangeMax = 8
+            )
+        )
+    )
     
 ```
 
 ```{r}
-data_demog %>%
+x <- data_demog %>%
     left_join(int_median, by = "cas_id") %>%
     left_join(df_bullet, by = "cas_id") %>%
+    left_join(df_fit, by = "cas_id") %>%
     mutate(full_name = paste(last_name, first_name, sep = ", ")) %>%
     select(
         full_name,
         school_abbrev,
         total,
         bullet_total,
+        remarks,
         leadership,
         bullet_leadership,
         preceptor,
@@ -298,39 +316,49 @@ data_demog %>%
         bullet_mmi,
         residents,
         bullet_residents
-    ) %>%
-    datatable(
-        caption = "PGY1 Interview Scores",
-        rownames = FALSE,
-        escape = FALSE,
-        colnames = c(
-            "Name", 
-            "School", 
-            "Score", 
-            "Score Comp", 
-            "Leader",
-            "Leader Comp",
-            "Precept", 
-            "Precept Comp",
-            "MMI",
-            "MMI Comp", 
-            "Resident",
-            "Resident Comp"
+    )
+
+datatable(
+    x,
+    caption = "PGY1 Interview Scores",
+    rownames = FALSE,
+    escape = FALSE,
+    colnames = c(
+        "Name", 
+        "School", 
+        "Score", 
+        "Score Comp", 
+        "Fit",
+        "Leader",
+        "Leader Comp",
+        "Precept", 
+        "Precept Comp",
+        "MMI",
+        "MMI Comp", 
+        "Resident",
+        "Resident Comp"
+    ),
+    extensions = "FixedHeader",
+    options = list(
+        dom = "t",
+        fixedHeader = TRUE,
+        pageLength = 30,
+        order = list(list(2, 'desc')),
+        initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'font-size': '80%'});",
+            "}"
         ),
-        extensions = "FixedHeader",
-        options = list(
-            fixedHeader = TRUE,
-            pageLength = 30,
-            order = list(list(2, 'desc')),
-            fnDrawCallback = JS(
-                "function(){ HTMLWidgets.staticRender(); }"
-            )
+        fnDrawCallback = JS(
+            "function(){ HTMLWidgets.staticRender(); }"
         )
-    ) %>%
+    )
+) %>%
     formatRound(
         c("total", "leadership", "preceptor", "mmi", "residents"),
         1
     ) %>%
+    formatStyle(columns = c(1:ncol(x)), fontSize = "80%") %>%
     spk_add_deps()
 ```
 
