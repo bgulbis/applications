@@ -31,6 +31,8 @@ univ <- paste(
     " - BOTHELL CAMPUS/SEATTLE CAMPUS/TACOMA CAMPUS", 
     " FOR MEDICAL SCIENCES", 
     " - CHAPEL HILL", 
+    " - AUSTIN",
+    " - AUBURN",
     sep = "|"
 )
 
@@ -194,7 +196,7 @@ make_bullet <- function(med, x, p75, p25, group) {
     spk_chr(
         values = c(med, x, lim),
         type = "bullet",
-        width = 60
+        width = 50
         # chartRangeMin = 0,
         # chartRangeMax = 100
     )
@@ -392,7 +394,7 @@ x <- data_demog %>%
 
 datatable(
     x,
-    caption = "PGY1 Interview Scores",
+    # caption = "PGY1 Interview Scores",
     rownames = TRUE,
     escape = FALSE,
     colnames = c(
