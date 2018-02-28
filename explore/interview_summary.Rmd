@@ -17,7 +17,6 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 library(tidyverse)
 library(DT)
 library(sparkline)
-library(themebg)
 
 raw_apps <- read_csv("../data/raw/2018/pgy1_interview_scores.csv") 
 
@@ -196,7 +195,8 @@ make_bullet <- function(med, x, p75, p25, group) {
     spk_chr(
         values = c(med, x, lim),
         type = "bullet",
-        width = 50
+        width = 50,
+        performanceColor = "#3182bd"
         # chartRangeMin = 0,
         # chartRangeMax = 100
     )
@@ -285,6 +285,7 @@ df_fit <- data_interview_scores %>%
     summarize_at(
         "remarks",
         funs(
+            median,
             spk_chr(
                 values = .,
                 type = "box",
@@ -294,6 +295,10 @@ df_fit <- data_interview_scores %>%
                 chartRangeMax = 8
             )
         )
+    ) %>%
+    rename(
+        fit = median,
+        fit_box = spk_chr
     )
     
 all_app_median <- data_app_scores %>%
@@ -376,7 +381,8 @@ x <- data_demog %>%
         school_abbrev,
         total,
         bullet_total,
-        remarks,
+        fit,
+        fit_box,
         leadership,
         bullet_leadership,
         preceptor,
@@ -390,12 +396,12 @@ x <- data_demog %>%
         gpa,
         interests
     ) %>%
-    arrange(desc(total))
+    arrange(desc(total), desc(fit))
 
 datatable(
     x,
     # rownames = TRUE,
-    escape = FALSE,
+    escape = c(seq(-5, -17, by = -2)),
     colnames = c(
         "Rank",
         "Name", 
@@ -403,6 +409,7 @@ datatable(
         "Score", 
         "Comp", 
         "Fit",
+        "Distr",
         "Leader",
         "Comp",
         "Precept", 
