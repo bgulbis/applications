@@ -394,24 +394,25 @@ x <- data_demog %>%
 
 datatable(
     x,
-    rownames = TRUE,
+    # rownames = TRUE,
     escape = FALSE,
     colnames = c(
+        "Rank",
         "Name", 
         "School", 
         "Score", 
-        "Score Comp", 
+        "Comp", 
         "Fit",
         "Leader",
-        "Leader Comp",
+        "Comp",
         "Precept", 
-        "Precept Comp",
+        "Comp",
         "MMI",
-        "MMI Comp", 
+        "Comp", 
         "Resident",
-        "Resident Comp",
+        "Comp",
         "App",
-        "App Comp",
+        "Comp",
         "GPA",
         "Interests"
     ),
@@ -436,7 +437,7 @@ datatable(
         c("total", "leadership", "preceptor", "mmi", "residents"),
         1
     ) %>%
-    formatStyle(columns = c(1:ncol(x)), fontSize = "80%") %>%
+    formatStyle(columns = c(0:ncol(x)), fontSize = "80%") %>%
     spk_add_deps()
 ```
 
