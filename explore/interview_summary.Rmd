@@ -183,19 +183,20 @@ data_ref <- raw_apps %>%
 ```{r}
 make_bullet <- function(med, x, p75, p25, group) {
     lim <- case_when(
-        group == "total" ~ 100,
+        group == "total" ~ 112,
         group == "leadership" ~ 35,
         group == "preceptor" ~ 35,
         group == "mmi" ~ 14,
-        group == "residents" ~ 28
+        group == "residents" ~ 28,
+        group == "application" ~ 45
     )
     
     spk_chr(
-        values = c(med, x, lim, p75, p25),
+        values = c(med, x, lim),
         type = "bullet",
-        width = 75,
-        chartRangeMin = 0,
-        chartRangeMax = 100
+        width = 60
+        # chartRangeMin = 0,
+        # chartRangeMax = 100
     )
 }
 
@@ -213,7 +214,6 @@ median_quant <- function(x, cols = c("remarks", "score")) {
 }
 
 ```
-
 
 ```{r}
 
@@ -294,6 +294,71 @@ df_fit <- data_interview_scores %>%
         )
     )
     
+all_app_median <- data_app_scores %>%
+    median_quant(c("remark", "score")) %>%
+    rename(
+        remarks_all_median = remark_median,
+        score_all_median = score_median
+    )
+
+app_reviewer_med <- data_app_scores %>%
+    group_by(reviewer) %>%
+    median_quant(c("remark", "score")) %>%
+    mutate(
+        app_score_adj = (all_app_median$score_all_median - score_median) * 0.5
+    )
+
+app_median <- data_app_scores %>%
+    left_join(
+        app_reviewer_med[c("reviewer", "app_score_adj")], 
+        by = "reviewer"
+    ) %>%
+    mutate(app_score = score + app_score_adj) %>%
+    group_by(cas_id) %>%
+    summarize_at("app_score", median, na.rm = TRUE) 
+
+app_total <- app_median %>%
+    ungroup() %>%
+    median_quant("app_score")
+
+df_bullet_app <- app_median %>%
+    group_by(cas_id) %>%
+    mutate(
+        bullet = make_bullet(
+            app_total$median, 
+            app_score, 
+            0, 
+            0,
+            "application"
+        )
+    ) %>%
+    ungroup() %>%
+    rename(bullet_app = bullet)
+
+abbrev_interests <- c(
+    "Ambulatory Care" = "Amb Care",
+    "Cardiology" = "Card",
+    "Critical Care" = "Crit Care",
+    "Emergency Medicine" = "ED",
+    "Infectious Diseases" = "ID",
+    "Internal Medicine" = "Int Med",
+    "Oncology" = "Onc",
+    "Pediatrics" = "Pedi",
+    "Transplant" = "Transp"
+)
+
+df_interests <- data_demog %>%
+    select(cas_id, interest_1, interest_2, interest_3) %>%
+    gather(key, value, -cas_id) %>%
+    filter(
+        !is.na(value),
+        value != ""
+    ) %>%
+    mutate_at("value", str_replace_all, pattern = abbrev_interests) %>%
+    group_by(cas_id) %>%
+    summarize_at("value", str_c, collapse = ", ") %>%
+    rename(interests = value)
+
 ```
 
 ```{r}
@@ -301,7 +366,9 @@ x <- data_demog %>%
     left_join(int_median, by = "cas_id") %>%
     left_join(df_bullet, by = "cas_id") %>%
     left_join(df_fit, by = "cas_id") %>%
-    mutate(full_name = paste(last_name, first_name, sep = ", ")) %>%
+    left_join(df_bullet_app, by = "cas_id") %>%
+    left_join(df_interests, by = "cas_id") %>%
+    unite(full_name, last_name, first_name, sep = ", ") %>%
     select(
         full_name,
         school_abbrev,
@@ -315,13 +382,18 @@ x <- data_demog %>%
         mmi,
         bullet_mmi,
         residents,
-        bullet_residents
-    )
+        bullet_residents,
+        app_score,
+        bullet_app,
+        gpa,
+        interests
+    ) %>%
+    arrange(desc(total))
 
 datatable(
     x,
     caption = "PGY1 Interview Scores",
-    rownames = FALSE,
+    rownames = TRUE,
     escape = FALSE,
     colnames = c(
         "Name", 
@@ -336,14 +408,19 @@ datatable(
         "MMI",
         "MMI Comp", 
         "Resident",
-        "Resident Comp"
+        "Resident Comp",
+        "App",
+        "App Comp",
+        "GPA",
+        "Interests"
     ),
-    extensions = "FixedHeader",
+    extensions = c("RowReorder", "FixedHeader"),
     options = list(
         dom = "t",
+        rowReorder = TRUE,
         fixedHeader = TRUE,
         pageLength = 30,
-        order = list(list(2, 'desc')),
+        order = list(list(3, 'desc')),
         initComplete = JS(
             "function(settings, json) {",
             "$(this.api().table().header()).css({'font-size': '80%'});",
@@ -365,43 +442,6 @@ datatable(
 
 ```{r, eval=FALSE}
     
-all_app_median <- data_app_scores %>%
-    summarize_at(
-        c("remark", "score"), 
-        funs(
-            median, 
-            p25 = quantile(., 0.25),
-            p75 = quantile(., 0.75)
-        )
-    )
-
-app_reviewer_med <- data_app_scores %>%
-    group_by(reviewer) %>%
-    summarize_at(
-        c("remark", "score"), 
-        funs(
-            app_rev_median = median, 
-            app_rev_p25 = quantile(., 0.25),
-            app_rev_p75 = quantile(., 0.75)
-        )
-    ) %>%
-    mutate(app_score_adj = (all_app_median$score_median - score_app_rev_median) * 0.5)
-
-app_median <- data_app_scores %>%
-    left_join(
-        app_reviewer_med[c("reviewer", "app_score_adj")], 
-        by = "reviewer"
-    ) %>%
-    mutate(score_adj = score + app_score_adj) %>%
-    group_by(cas_id) %>%
-    summarize_at(
-        c("remark", "score", "score_adj"), 
-        funs(
-            app_median = median, 
-            app_p25 = quantile(., 0.25), 
-            app_p75 = quantile(., 0.75)
-        )
-    )
 
 all_vidyo_median <- data_vidyo_scores %>%
     summarize_at(
