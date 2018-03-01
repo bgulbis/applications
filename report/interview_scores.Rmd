@@ -394,6 +394,25 @@ data_demog %>%
 ```
 
 ```{r, fig.width=10, fig.height=6}
+lvl <- c(
+    "total",
+    "fit",
+    "leadership",
+    "preceptor",
+    "mmi",
+    "residents"
+)
+
+med_fit <- df_fit %>%
+    summarize_at("fit", median) %>%
+    mutate(key = "fit") %>%
+    rename(median = fit)
+
+med_lines <- int_totals %>%
+    rename(key = group) %>%
+    bind_rows(med_fit) %>%
+    mutate_at("key", factor, levels = lvl)
+
 data_demog %>%
     unite(full_name, last_name, first_name, sep = ", ") %>%
     select(cas_id, full_name) %>%
@@ -404,20 +423,10 @@ data_demog %>%
     mutate_at("full_name", as_factor) %>%
     mutate_at("full_name", fct_rev) %>%
     gather(key, value, -cas_id, -full_name) %>%
-    mutate_at(
-        "key", 
-        factor, 
-        levels = c(
-            "total",
-            "fit",
-            "leadership",
-            "preceptor",
-            "mmi",
-            "residents"
-        )
-    ) %>%
+    mutate_at("key", factor, levels = lvl) %>%
     ggplot(aes(x = full_name, y = value)) +
     geom_bar(stat = "identity", fill = "grey60") +
+    geom_hline(aes(yintercept = median), data = med_lines, color = "grey30") +
     xlab(NULL) +
     ylab(NULL) +
     facet_wrap(~ key, scales = "free_x", nrow = 1) +
