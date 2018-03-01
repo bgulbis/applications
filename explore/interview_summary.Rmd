@@ -23,6 +23,7 @@ raw_apps <- read_csv("../data/raw/2018/pgy1_interview_scores.csv")
 univ <- paste(
     " - STATE UNIV OF NEW JERSEY - NEW BRUNSWICK", 
     " - FORT WORTH", 
+    " -  PARK",
     " - UNIV PARK", 
     " - LAKE ERIE COLLEGE OF OSTEOPATHIC MEDICINE AND SCHOOL OF PHARMACY - BRADENTON, FL", 
     " OF MEDICINE AND SCIENCE", 
@@ -57,8 +58,20 @@ data_demog <- raw_apps %>%
     mutate_at(
         "school_abbrev", 
         str_replace_all, 
-        pattern = "UNIVERSITY", 
-        replacement = "UNIV"
+        pattern = "MEDICAL UNIVERSITY OF SOUTH CAROLINA", 
+        replacement = "MUSC"
+    ) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = "UNIVERSITY OF THE INCARNATE WORD", 
+        replacement = "INCARNATE WORD"
+    ) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = "UNIVERSITY( OF){0,1}", 
+        replacement = ""
     ) %>%
     mutate_at(
         "school_abbrev", 
@@ -343,15 +356,15 @@ df_bullet_app <- app_median %>%
     rename(bullet_app = bullet)
 
 abbrev_interests <- c(
-    "Ambulatory Care" = "Amb Care",
+    "Ambulatory Care" = "Amb",
     "Cardiology" = "Card",
-    "Critical Care" = "Crit Care",
+    "Critical Care" = "Crit",
     "Emergency Medicine" = "ED",
     "Infectious Diseases" = "ID",
-    "Internal Medicine" = "Int Med",
+    "Internal Medicine" = "Med",
     "Oncology" = "Onc",
     "Pediatrics" = "Pedi",
-    "Transplant" = "Transp"
+    "Transplant" = "Trplnt"
 )
 
 df_interests <- data_demog %>%

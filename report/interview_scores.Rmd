@@ -18,6 +18,7 @@ raw_apps <- read_csv("../data/raw/2018/pgy1_interview_scores.csv")
 univ <- paste(
     " - STATE UNIV OF NEW JERSEY - NEW BRUNSWICK", 
     " - FORT WORTH", 
+    " -  PARK",
     " - UNIV PARK", 
     " - LAKE ERIE COLLEGE OF OSTEOPATHIC MEDICINE AND SCHOOL OF PHARMACY - BRADENTON, FL", 
     " OF MEDICINE AND SCIENCE", 
@@ -52,8 +53,20 @@ data_demog <- raw_apps %>%
     mutate_at(
         "school_abbrev", 
         str_replace_all, 
-        pattern = "UNIVERSITY", 
-        replacement = "UNIV"
+        pattern = "MEDICAL UNIVERSITY OF SOUTH CAROLINA", 
+        replacement = "MUSC"
+    ) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = "UNIVERSITY OF THE INCARNATE WORD", 
+        replacement = "INCARNATE WORD"
+    ) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = "UNIVERSITY( OF){0,1}", 
+        replacement = ""
     ) %>%
     mutate_at(
         "school_abbrev", 
@@ -177,26 +190,6 @@ data_ref <- raw_apps %>%
 ```
 
 ```{r}
-# make_bullet <- function(med, x, p75, p25, group) {
-#     lim <- case_when(
-#         group == "total" ~ 112,
-#         group == "leadership" ~ 35,
-#         group == "preceptor" ~ 35,
-#         group == "mmi" ~ 14,
-#         group == "residents" ~ 28,
-#         group == "application" ~ 45
-#     )
-#     
-#     spk_chr(
-#         values = c(med, x, lim),
-#         type = "bullet",
-#         width = 50,
-#         performanceColor = "#3182bd"
-#         # chartRangeMin = 0,
-#         # chartRangeMax = 100
-#     )
-# }
-
 median_quant <- function(x, cols = c("remarks", "score")) {
     summarize_at(
         x,
@@ -264,16 +257,6 @@ int_totals <- int_median %>%
     separate(key, c("group", "key"), sep = "_") %>%
     spread(key, value)
     
-# df_bullet <- int_median %>%
-#     gather(group, value, -cas_id) %>%
-#     left_join(int_totals, by = "group") %>%
-#     group_by(cas_id, group) %>%
-#     mutate(bullet = make_bullet(median, value, p75, p25, group)) %>%
-#     select(-(value:p75)) %>%
-#     spread(group, bullet) %>%
-#     ungroup() %>%
-#     rename_if(is.character, funs(paste0("bullet_", .)))
-
 df_fit <- data_interview_scores %>%
     group_by(cas_id) %>%
     summarize_at("remarks", median) %>%
@@ -306,30 +289,16 @@ app_total <- app_median %>%
     ungroup() %>%
     median_quant("app_score")
 
-# df_bullet_app <- app_median %>%
-#     group_by(cas_id) %>%
-#     mutate(
-#         bullet = make_bullet(
-#             app_total$median, 
-#             app_score, 
-#             0, 
-#             0,
-#             "application"
-#         )
-#     ) %>%
-#     ungroup() %>%
-#     rename(bullet_app = bullet)
-
 abbrev_interests <- c(
-    "Ambulatory Care" = "Amb Care",
+    "Ambulatory Care" = "Amb",
     "Cardiology" = "Card",
-    "Critical Care" = "Crit Care",
+    "Critical Care" = "Crit",
     "Emergency Medicine" = "ED",
     "Infectious Diseases" = "ID",
-    "Internal Medicine" = "Int Med",
+    "Internal Medicine" = "Med",
     "Oncology" = "Onc",
     "Pediatrics" = "Pedi",
-    "Transplant" = "Transp"
+    "Transplant" = "Trplnt"
 )
 
 df_interests <- data_demog %>%
