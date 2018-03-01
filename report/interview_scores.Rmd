@@ -1,6 +1,7 @@
 ---
 title: "PGY1 Interview Summary"
 output: pdf_document
+classoption: landscape
 ---
 
 ```{r setup, include=FALSE}
@@ -388,8 +389,39 @@ data_demog %>%
         ),
         caption = "Score Summary"
     ) %>%
-    kable_styling(latex_options = "scale_down") %>%
-    landscape()
+    kable_styling(latex_options = "scale_down") 
 
+```
+
+```{r, fig.width=10, fig.height=6}
+data_demog %>%
+    unite(full_name, last_name, first_name, sep = ", ") %>%
+    select(cas_id, full_name) %>%
+    left_join(int_median, by = "cas_id") %>%
+    left_join(df_fit, by = "cas_id") %>%
+    ungroup() %>%
+    arrange(desc(total), desc(fit)) %>%
+    mutate_at("full_name", as_factor) %>%
+    mutate_at("full_name", fct_rev) %>%
+    gather(key, value, -cas_id, -full_name) %>%
+    mutate_at(
+        "key", 
+        factor, 
+        levels = c(
+            "total",
+            "fit",
+            "leadership",
+            "preceptor",
+            "mmi",
+            "residents"
+        )
+    ) %>%
+    ggplot(aes(x = full_name, y = value)) +
+    geom_bar(stat = "identity", fill = "grey60") +
+    xlab(NULL) +
+    ylab(NULL) +
+    facet_wrap(~ key, scales = "free_x", nrow = 1) +
+    coord_flip() +
+    theme_bg()
 ```
 
