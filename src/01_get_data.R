@@ -1,6 +1,6 @@
 library(tidyverse)
 
-raw_apps <- read_csv("../data/raw/2018/pgy1_application_scores.csv")
+raw_apps <- read_csv("data/raw/2019/pgy1_application_scores.csv")
     # filter(!(last_name %in% c("Ju", "Kessinger", "Rakouki", "Zidaru")))
 
 # make tidy data sets
