@@ -138,7 +138,9 @@ app_reviewer_med <- data_app_scores %>%
             app_rev_p75 = quantile(., 0.75)
         )
     ) %>%
-    mutate(app_score_adj = (all_app_median$score_median - score_app_rev_median) * 0.5)
+    mutate(
+        app_score_adj = (all_app_median$score_median - score_app_rev_median) * 0.5
+    )
 
 app_median <- data_app_scores %>%
     left_join(
@@ -176,7 +178,9 @@ vid_reviewer_med <- data_vidyo_scores %>%
             vid_rev_p75 = quantile(., 0.75)
         )
     ) %>%
-    mutate(vid_score_adj = (all_vidyo_median$score_median - score_vid_rev_median) * 0.5)
+    mutate(
+        vid_score_adj = (all_vidyo_median$score_median - score_vid_rev_median) * 0.5
+    )
 
 vidyo_median <- data_vidyo_scores %>%
     left_join(
@@ -271,8 +275,16 @@ total_score <- data_demog %>%
     group_by(cas_id) %>%
     mutate(
         app_name = str_c(last_name, first_name, sep = ", "),
-        score = sum(score_vid_median, score_app_median, na.rm = TRUE),
-        score_adj = sum(score_adj_app_median, score_adj_vid_median, na.rm = TRUE)
+        score = sum(
+            score_vid_median, 
+            score_app_median, 
+            na.rm = TRUE
+        ),
+        score_adj = sum(
+            score_adj_app_median,
+            score_adj_vid_median, 
+            na.rm = TRUE
+        )
     ) %>%
     arrange(
         desc(score_adj),
@@ -290,3 +302,9 @@ total_median <- total_score %>%
             p75 = quantile(., 0.75)
         )
     )
+
+write.csv(
+    total_score, 
+    "data/external/2019_applications.csv", 
+    row.names = FALSE
+)
