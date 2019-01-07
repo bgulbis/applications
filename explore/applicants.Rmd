@@ -1,0 +1,60 @@
+---
+title: "Applicant Exploratory Analysis"
+author: "Brian Gulbis"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: 
+    html_document:
+        code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(ggmap)
+library(maps)
+library(RColorBrewer)
+library(themebg)
+```
+
+```{r}
+applicants <- read_csv("../data/raw/contact_information.csv") %>%
+    mutate(home_city = str_c(city, state, sep = ", ")) 
+
+all_state <- map_data("state")
+
+states <- state.abb
+dc <- data_frame(abb = "DC", region = "district of columbia")
+states_dc <- data_frame(abb = state.abb, 
+                        region = str_to_lower(state.name[match(states, state.abb)])) %>%
+    bind_rows(dc)
+
+state_app <- applicants %>%
+    mutate_at("state", str_to_lower) %>%
+    count(state) %>%
+    right_join(all_state, by=c("state" = "region")) 
+
+cols <- brewer.pal(7, "Blues")
+
+ggplot() +
+    geom_polygon(data=state_app, aes(x=long, y=lat, group=group, fill=n), color="black") +
+    scale_fill_continuous(low=cols[1], high=cols[7], guide=FALSE) +
+    theme_nothing() +
+    coord_map()
+
+```
+
+```{r}
+applicants %>%
+    count(pharmacy_school_name_0, sort = TRUE) %>%
+    knitr::kable(caption = "Number of applicants from each school of pharmacy")
+```
+
+```{r}
+applicants %>%
+    count(pharmacy_school_graduation_date_0) %>%
+    knitr::kable(caption = "Number of applicants per graduation year")
+```
+

@@ -1,0 +1,463 @@
+---
+title: "PGY1 Interview Summary"
+output: flexdashboard::flex_dashboard
+---
+
+<style>
+    body .main-container {
+        max-width: 100%;
+    }
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(DT)
+library(sparkline)
+
+raw_apps <- read_csv("../data/raw/2018/pgy1_interview_scores.csv") 
+
+univ <- paste(
+    " - STATE UNIV OF NEW JERSEY - NEW BRUNSWICK", 
+    " - FORT WORTH", 
+    " -  PARK",
+    " - UNIV PARK", 
+    " - LAKE ERIE COLLEGE OF OSTEOPATHIC MEDICINE AND SCHOOL OF PHARMACY - BRADENTON, FL", 
+    " OF MEDICINE AND SCIENCE", 
+    " - DENVER AND HSC", 
+    " - BOTHELL CAMPUS/SEATTLE CAMPUS/TACOMA CAMPUS", 
+    " FOR MEDICAL SCIENCES", 
+    " - CHAPEL HILL", 
+    " - AUSTIN",
+    " - AUBURN",
+    sep = "|"
+)
+
+data_demog <- raw_apps %>%
+    select(
+        cas_id:last_name, 
+        school = pharmacy_school_name_0, 
+        gpa = pharmacy_school_gpa_0,
+        interest_1 = custom_field_interest_1,
+        interest_2 = custom_field_interest_2,
+        interest_3 = custom_field_interest_3,
+        school_score = custom_field_school_score,
+        tmc_lor = `custom_field_mh-tmc_rec`
+    ) %>%
+    mutate_at("tmc_lor", funs(. == "Y")) %>%
+    mutate_at(
+        c("interest_1", "interest_2", "interest_3"), 
+        str_replace_all, 
+        pattern = "Not Specified", 
+        replacement = ""
+    ) %>%
+    mutate(school_abbrev = school) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = "MEDICAL UNIVERSITY OF SOUTH CAROLINA", 
+        replacement = "MUSC"
+    ) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = "UNIVERSITY OF THE INCARNATE WORD", 
+        replacement = "INCARNATE WORD"
+    ) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = "UNIVERSITY( OF){0,1}", 
+        replacement = ""
+    ) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = "HEALTH SCIENCE(S){0,1} CENTER", 
+        replacement = "HSC"
+    ) %>%
+    mutate_at(
+        "school_abbrev",
+        str_replace_all, 
+        pattern = "COLLEGE OF PHARMACY", 
+        replacement = "COP"
+    ) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = "AND HEALTH SCIENCE", 
+        replacement = "AND HS"
+    ) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = "AGRICULTURAL AND MECHANICAL", 
+        replacement = "A&M"
+    ) %>%
+    mutate_at(
+        "school_abbrev",
+        str_replace_all, 
+        pattern = " UNIVERSITIES COLLEGE OF MEDICINE", 
+        replacement = " UNIV COM"
+    ) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = " - DOWNERS GROVE",
+        replacement = " - CHI"
+    ) %>%
+    mutate_at(
+        "school_abbrev", 
+        str_replace_all, 
+        pattern = univ,
+        replacement = ""
+    )
+
+data_app_scores <- raw_apps %>%
+    select(cas_id, starts_with("assignment")) %>%
+    gather(key = key, value = value, -cas_id) %>%
+    mutate_at(
+        "key",
+        str_replace_all, 
+        pattern = "assignment.{0,1}_application_scoring_", 
+        replacement = ""
+    ) %>%
+    separate(key, c("key", "n"), sep = "_") %>%
+    spread(key, value) %>%
+    mutate_at("remark", str_extract, pattern = "[0-9]") %>%
+    mutate_at(c("remark", "score"), as.numeric) %>%
+    filter(!is.na(score)) 
+
+data_interview_scores <- raw_apps %>%
+    select(
+        cas_id, 
+        contains("leadership"),
+        contains("preceptor"),
+        contains("mmi_1-2"),
+        contains("residents")
+    ) %>%
+    gather(key = key, value = value, -cas_id) %>%
+    mutate_at(
+        "key",
+        str_replace_all,
+        pattern = "mmi_1-2",
+        replacement = "mmi"
+    ) %>%
+    mutate_at(
+        "key", 
+        str_replace_all, 
+        pattern = "interview_", 
+        replacement = ""
+    ) %>%
+    separate(key, c("group", "key", "n"), sep = "_") %>%
+    spread(key, value) %>%
+    filter(!is.na(interviewer)) %>%
+    mutate_at(
+        "remarks",
+        str_replace_all,
+        pattern = "MMI 1-2",
+        replacement = "MMI"
+    ) %>%
+    mutate_at("remarks", str_extract, pattern = "[0-9]") %>%
+    mutate_at(c("remarks", "score"), as.numeric) %>%
+    filter(!is.na(score)) 
+    
+data_vidyo_scores <- raw_apps %>%
+    select(cas_id, starts_with("interview_vidyo")) %>%
+    gather(key = key, value = value, -cas_id) %>%
+    mutate_at(
+        "key", 
+        str_replace_all, 
+        pattern = "interview_vidyo_interview_", 
+        replacement = ""
+    ) %>%
+    separate(key, c("key", "n"), sep = "_") %>%
+    spread(key, value) %>%
+    mutate_at("remarks", str_extract, pattern = "[0-9]") %>%
+    mutate_at(c("remarks", "score"), as.numeric) %>%
+    filter(!is.na(score)) 
+    
+data_ref <- raw_apps %>%
+    select(cas_id, starts_with("reference")) %>%
+    gather(key = key, value = value, -cas_id) %>%
+    mutate_at(
+        "key", 
+        str_replace_all, 
+        pattern = "reference_overall_", 
+        replacement = ""
+    ) %>%
+    separate(key, c("key", "n"), sep = "_") %>%
+    spread(key, value) %>%
+    filter(!is.na(rating))
+```
+
+```{r}
+make_bullet <- function(med, x, p75, p25, group) {
+    lim <- case_when(
+        group == "total" ~ 112,
+        group == "leadership" ~ 35,
+        group == "preceptor" ~ 35,
+        group == "mmi" ~ 14,
+        group == "residents" ~ 28,
+        group == "application" ~ 45
+    )
+    
+    spk_chr(
+        values = c(med, x, lim),
+        type = "bullet",
+        width = 50,
+        performanceColor = "#3182bd"
+        # chartRangeMin = 0,
+        # chartRangeMax = 100
+    )
+}
+
+median_quant <- function(x, cols = c("remarks", "score")) {
+    summarize_at(
+        x,
+        cols, 
+        funs(
+            median, 
+            p25 = quantile(., 0.25),
+            p75 = quantile(., 0.75)
+        ),
+        na.rm = TRUE
+    )
+}
+
+```
+
+```{r}
+
+all_interview_median <- data_interview_scores %>%
+    group_by(group) %>%
+    median_quant() %>%
+    rename(
+        remarks_all_median = remarks_median,
+        score_all_median = score_median
+    )
+
+all_interviewer_med <- data_interview_scores %>%
+    group_by(group, interviewer) %>%
+    median_quant() %>%
+    left_join(
+        all_interview_median[c("group", "score_all_median")],
+        by = "group"
+    ) %>%
+    mutate(int_score_adj = (score_all_median - score_median) * 0.5)
+
+int_median <- data_interview_scores %>%
+    left_join(
+        all_interviewer_med[c("interviewer", "int_score_adj")], 
+        by = "interviewer"
+    ) %>%
+    mutate(score.adj = score + int_score_adj) %>%
+    group_by(cas_id, group) %>%
+    summarize_at("score.adj", median, na.rm = TRUE) %>%
+    spread(group, score.adj) %>%
+    mutate(
+        total = sum(
+            leadership, 
+            mmi, 
+            preceptor, 
+            residents, 
+            na.rm = TRUE
+        )
+    )
+
+int_totals <- int_median %>%
+    ungroup() %>%
+    median_quant(
+        c(
+            "leadership", 
+            "mmi", 
+            "preceptor", 
+            "residents", 
+            "total"
+        )
+    ) %>%
+    gather(key, value) %>%
+    separate(key, c("group", "key"), sep = "_") %>%
+    spread(key, value)
+    
+df_bullet <- int_median %>%
+    gather(group, value, -cas_id) %>%
+    left_join(int_totals, by = "group") %>%
+    group_by(cas_id, group) %>%
+    mutate(bullet = make_bullet(median, value, p75, p25, group)) %>%
+    select(-(value:p75)) %>%
+    spread(group, bullet) %>%
+    ungroup() %>%
+    rename_if(is.character, funs(paste0("bullet_", .)))
+
+df_fit <- data_interview_scores %>%
+    group_by(cas_id) %>%
+    summarize_at(
+        "remarks",
+        funs(
+            median,
+            spk_chr(
+                values = .,
+                type = "box",
+                width = 75,
+                target = 4,
+                chartRangeMin = 0,
+                chartRangeMax = 8
+            )
+        )
+    ) %>%
+    rename(
+        fit = median,
+        fit_box = spk_chr
+    )
+    
+all_app_median <- data_app_scores %>%
+    median_quant(c("remark", "score")) %>%
+    rename(
+        remarks_all_median = remark_median,
+        score_all_median = score_median
+    )
+
+app_reviewer_med <- data_app_scores %>%
+    group_by(reviewer) %>%
+    median_quant(c("remark", "score")) %>%
+    mutate(
+        app_score_adj = (all_app_median$score_all_median - score_median) * 0.5
+    )
+
+app_median <- data_app_scores %>%
+    left_join(
+        app_reviewer_med[c("reviewer", "app_score_adj")], 
+        by = "reviewer"
+    ) %>%
+    mutate(app_score = score + app_score_adj) %>%
+    group_by(cas_id) %>%
+    summarize_at("app_score", median, na.rm = TRUE) 
+
+app_total <- app_median %>%
+    ungroup() %>%
+    median_quant("app_score")
+
+df_bullet_app <- app_median %>%
+    group_by(cas_id) %>%
+    mutate(
+        bullet = make_bullet(
+            app_total$median, 
+            app_score, 
+            0, 
+            0,
+            "application"
+        )
+    ) %>%
+    ungroup() %>%
+    rename(bullet_app = bullet)
+
+abbrev_interests <- c(
+    "Ambulatory Care" = "Amb",
+    "Cardiology" = "Card",
+    "Critical Care" = "Crit",
+    "Emergency Medicine" = "ED",
+    "Infectious Diseases" = "ID",
+    "Internal Medicine" = "Med",
+    "Oncology" = "Onc",
+    "Pediatrics" = "Pedi",
+    "Transplant" = "Trplnt"
+)
+
+df_interests <- data_demog %>%
+    select(cas_id, interest_1, interest_2, interest_3) %>%
+    gather(key, value, -cas_id) %>%
+    filter(
+        !is.na(value),
+        value != ""
+    ) %>%
+    mutate_at("value", str_replace_all, pattern = abbrev_interests) %>%
+    group_by(cas_id) %>%
+    summarize_at("value", str_c, collapse = ", ") %>%
+    rename(interests = value)
+
+```
+
+```{r}
+x <- data_demog %>%
+    left_join(int_median, by = "cas_id") %>%
+    left_join(df_bullet, by = "cas_id") %>%
+    left_join(df_fit, by = "cas_id") %>%
+    left_join(df_bullet_app, by = "cas_id") %>%
+    left_join(df_interests, by = "cas_id") %>%
+    unite(full_name, last_name, first_name, sep = ", ") %>%
+    select(
+        full_name,
+        school_abbrev,
+        total,
+        bullet_total,
+        fit,
+        fit_box,
+        leadership,
+        bullet_leadership,
+        preceptor,
+        bullet_preceptor,
+        mmi,
+        bullet_mmi,
+        residents,
+        bullet_residents,
+        app_score,
+        bullet_app,
+        gpa,
+        interests
+    ) %>%
+    arrange(desc(total), desc(fit))
+
+datatable(
+    x,
+    # rownames = TRUE,
+    escape = c(seq(-5, -17, by = -2)),
+    colnames = c(
+        "Rank",
+        "Name", 
+        "School", 
+        "Score", 
+        "Comp", 
+        "Fit",
+        "Distr",
+        "Leader",
+        "Comp",
+        "Precept", 
+        "Comp",
+        "MMI",
+        "Comp", 
+        "Resident",
+        "Comp",
+        "App",
+        "Comp",
+        "GPA",
+        "Interests"
+    ),
+    extensions = c("RowReorder", "FixedHeader"),
+    options = list(
+        dom = "t",
+        rowReorder = TRUE,
+        fixedHeader = TRUE,
+        pageLength = 30,
+        order = list(list(0, 'asc')),
+        initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'font-size': '80%'});",
+            "}"
+        ),
+        fnDrawCallback = JS(
+            "function(){ HTMLWidgets.staticRender(); }"
+        )
+    )
+) %>%
+    formatRound(
+        c("total", "leadership", "preceptor", "mmi", "residents"),
+        1
+    ) %>%
+    formatStyle(columns = c(0:ncol(x)), fontSize = "80%") %>%
+    spk_add_deps()
+```
+
