@@ -308,3 +308,8 @@ write.csv(
     "data/external/2019_applications.csv", 
     row.names = FALSE
 )
+
+openxlsx::write.xlsx(
+    total_score,
+    "data/external/2019_applications.xlsx"
+)
