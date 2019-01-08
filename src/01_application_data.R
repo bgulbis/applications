@@ -89,7 +89,11 @@ data_app_scores <- raw_apps %>%
     filter(!is.na(score)) 
 
 data_vidyo_scores <- raw_apps %>%
-    select(cas_id, starts_with("interview")) %>%
+    select(
+        cas_id, 
+        starts_with("interview"),
+        -interview_preceptor_interviewer
+    ) %>%
     gather(key = key, value = value, -cas_id) %>%
     mutate_at(
         "key", 
