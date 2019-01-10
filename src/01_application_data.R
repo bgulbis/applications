@@ -69,7 +69,22 @@ data_demog <- raw_apps %>%
     mutate_at(
         "school_abbrev", 
         str_replace_all, 
-        pattern = " - STATE UNIV OF NEW JERSEY - NEW BRUNSWICK| - FORT WORTH| - UNIV PARK| - LAKE ERIE COLLEGE OF OSTEOPATHIC MEDICINE AND SCHOOL OF PHARMACY| OF MEDICINE AND SCIENCE| - DENVER AND HSC| - BOTHELL CAMPUS/SEATTLE CAMPUS/TACOMA CAMPUS| FOR MEDICAL SCIENCES| - CHAPEL HILL| - WEST LAFAYETTE| - KINGSTON| - MAIN CAMPUS| \\(FOREIGN\\) INSTITUTION", 
+        pattern = paste(
+            " - STATE UNIV OF NEW JERSEY - NEW BRUNSWICK",
+            " - FORT WORTH",
+            " - UNIV PARK",
+            " - LAKE ERIE COLLEGE OF OSTEOPATHIC MEDICINE AND SCHOOL OF PHARMACY",
+            " OF MEDICINE AND SCIENCE",
+            " - DENVER AND HSC",
+            " - BOTHELL CAMPUS/SEATTLE CAMPUS/TACOMA CAMPUS",
+            " FOR MEDICAL SCIENCES",
+            " - CHAPEL HILL",
+            " - WEST LAFAYETTE",
+            " - KINGSTON",
+            " - MAIN CAMPUS",
+            " \\(FOREIGN\\) INSTITUTION",
+            sep = "|"
+        ),
         replacement = ""
     )
 
@@ -209,25 +224,13 @@ df_app_score <- data_app_scores %>%
     ) %>%
     mutate(score_adj = score + app_score_adj) %>%
     select(cas_id, n, score_adj) %>%
-    spread(n, score_adj) %>%
-    unite(comb_a_score, `0`:`2`, sep = ",") %>%
-    mutate_at(
-        "comb_a_score", 
-        str_replace_all, 
-        pattern = ",{0,1}NA", 
-        replacement = ""
-    )
+    rename(app_score = n) %>%
+    spread(app_score, score_adj, sep = "_")
 
 df_app_remark <- data_app_scores %>%
     select(-reviewer, -score) %>%
-    spread(n, remark) %>%
-    unite(comb_a_remark, `0`:`2`, sep = ",") %>%
-    mutate_at(
-        "comb_a_remark", 
-        str_replace_all, 
-        pattern = ",{0,1}NA", 
-        replacement = ""
-    )
+    rename(app_remark = n) %>%
+    spread(app_remark, remark, sep = "_") 
 
 df_vidyo_score <- data_vidyo_scores %>%
     left_join(
@@ -236,25 +239,13 @@ df_vidyo_score <- data_vidyo_scores %>%
     ) %>%
     mutate(score_adj = score + vid_score_adj) %>%
     select(cas_id, n, score_adj) %>%
-    spread(n, score_adj) %>%
-    unite(comb_v_score, `0`:`1`, sep = ",") %>%
-    mutate_at(
-        "comb_v_score",
-        str_replace_all, 
-        pattern = ",{0,1}NA", 
-        replacement = ""
-    )
+    rename(vid_score = n) %>%
+    spread(vid_score, score_adj, sep = "_") 
 
 df_vidyo_remark <- data_vidyo_scores %>%
     select(-interviewer, -score) %>%
-    spread(n, remarks) %>%
-    unite(comb_v_remark, `0`:`1`, sep = ",") %>%
-    mutate_at(
-        "comb_v_remark", 
-        str_replace_all,
-        pattern = ",{0,1}NA", 
-        replacement = ""
-    )
+    rename(vid_remark = n) %>%
+    spread(vid_remark, remarks, sep = "_") 
 
 df_remark <- data_vidyo_scores %>%
     select(cas_id, remark = remarks) %>%
@@ -263,7 +254,7 @@ df_remark <- data_vidyo_scores %>%
     summarize_at(
         "remark", 
         funs(
-            comb_remark_all = str_c(., collapse = ","), 
+            comb_remark_all = str_c(., collapse = ";"), 
             low_remarks = sum(. <= 2)
         )
     ) 
@@ -307,11 +298,10 @@ total_median <- total_score %>%
         )
     )
 
-write.csv(
-    total_score, 
-    "data/external/2019_applications.csv", 
-    row.names = FALSE
-)
+write_csv(total_score, "data/external/2019_applications.csv")
+
+write_csv(data_app_scores, "data/external/2019_application_scores.csv")
+write_csv(data_vidyo_scores, "data/external/2019_vidyo_scores.csv")
 
 openxlsx::write.xlsx(
     total_score,
