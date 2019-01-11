@@ -298,10 +298,28 @@ total_median <- total_score %>%
         )
     )
 
+data_interests <- total_score %>%
+    select(cas_id, interest_1:interest_3) %>%
+    gather(key, interest, interest_1:interest_3) %>%
+    filter(
+        !is.na(interest),
+        interest != ""
+    ) %>%
+    separate(key, c(NA, "tmp_pref"), sep = "_") %>%
+    mutate(
+        preference = case_when(
+            tmp_pref == 1 ~ 3,
+            tmp_pref == 2 ~ 2,
+            tmp_pref == 3 ~ 1
+        )
+    ) %>%
+    select(-tmp_pref)
+
 write_csv(total_score, "data/external/2019_applications.csv")
 
 write_csv(data_app_scores, "data/external/2019_application_scores.csv")
 write_csv(data_vidyo_scores, "data/external/2019_vidyo_scores.csv")
+write_csv(data_interests, "data/external/2019_applicant_interests.csv")
 
 openxlsx::write.xlsx(
     total_score,
