@@ -1,8 +1,12 @@
 ---
-title: "PGY1 Interview Summary"
-output: pdf_document
+output: 
+  pdf_document: 
+    latex_engine: xelatex
 classoption: landscape
+geometry: "left=2cm,right=2cm,top=1cm,bottom=2cm"
 ---
+
+\pagenumbering{gobble}
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
@@ -13,29 +17,13 @@ library(tidyverse)
 library(themebg)
 library(kableExtra)
 
-raw_apps <- read_csv("../data/raw/2018/pgy1_interview_scores.csv") 
-
-univ <- paste(
-    " - STATE UNIV OF NEW JERSEY - NEW BRUNSWICK", 
-    " - FORT WORTH", 
-    " -  PARK",
-    " - UNIV PARK", 
-    " - LAKE ERIE COLLEGE OF OSTEOPATHIC MEDICINE AND SCHOOL OF PHARMACY - BRADENTON, FL", 
-    " OF MEDICINE AND SCIENCE", 
-    " - DENVER AND HSC", 
-    " - BOTHELL CAMPUS/SEATTLE CAMPUS/TACOMA CAMPUS", 
-    " FOR MEDICAL SCIENCES", 
-    " - CHAPEL HILL", 
-    " - AUSTIN",
-    " - AUBURN",
-    sep = "|"
-)
+raw_apps <- read_csv("../data/raw/2019/pgy1_interview_scores.csv") 
 
 data_demog <- raw_apps %>%
     select(
         cas_id:last_name, 
-        school = pharmacy_school_name_0, 
-        gpa = pharmacy_school_gpa_0,
+        school = pharmacy_school_name, 
+        gpa = pharmacy_school_gpa,
         interest_1 = custom_field_interest_1,
         interest_2 = custom_field_interest_2,
         interest_3 = custom_field_interest_3,
@@ -50,23 +38,11 @@ data_demog <- raw_apps %>%
         replacement = ""
     ) %>%
     mutate(school_abbrev = school) %>%
-    mutate_at(
+        mutate_at(
         "school_abbrev", 
         str_replace_all, 
-        pattern = "MEDICAL UNIVERSITY OF SOUTH CAROLINA", 
-        replacement = "MUSC"
-    ) %>%
-    mutate_at(
-        "school_abbrev", 
-        str_replace_all, 
-        pattern = "UNIVERSITY OF THE INCARNATE WORD", 
-        replacement = "INCARNATE WORD"
-    ) %>%
-    mutate_at(
-        "school_abbrev", 
-        str_replace_all, 
-        pattern = "UNIVERSITY( OF){0,1}", 
-        replacement = ""
+        pattern = "UNIVERSITY",
+        replacement = "UNIV"
     ) %>%
     mutate_at(
         "school_abbrev", 
@@ -75,7 +51,7 @@ data_demog <- raw_apps %>%
         replacement = "HSC"
     ) %>%
     mutate_at(
-        "school_abbrev",
+        "school_abbrev", 
         str_replace_all, 
         pattern = "COLLEGE OF PHARMACY", 
         replacement = "COP"
@@ -83,7 +59,7 @@ data_demog <- raw_apps %>%
     mutate_at(
         "school_abbrev", 
         str_replace_all, 
-        pattern = "AND HEALTH SCIENCE", 
+        pattern = "AND HEALTH SCIENCE",
         replacement = "AND HS"
     ) %>%
     mutate_at(
@@ -93,21 +69,36 @@ data_demog <- raw_apps %>%
         replacement = "A&M"
     ) %>%
     mutate_at(
-        "school_abbrev",
+        "school_abbrev", 
         str_replace_all, 
-        pattern = " UNIVERSITIES COLLEGE OF MEDICINE", 
+        pattern = " UNIVERSITIES COLLEGE OF MEDICINE",
         replacement = " UNIV COM"
     ) %>%
     mutate_at(
         "school_abbrev", 
         str_replace_all, 
-        pattern = " - DOWNERS GROVE",
+        pattern = " - DOWNERS GROVE", 
         replacement = " - CHI"
     ) %>%
     mutate_at(
         "school_abbrev", 
         str_replace_all, 
-        pattern = univ,
+        pattern = paste(
+            " - STATE UNIV OF NEW JERSEY - NEW BRUNSWICK",
+            " - FORT WORTH",
+            " - UNIV PARK",
+            " - LAKE ERIE COLLEGE OF OSTEOPATHIC MEDICINE AND SCHOOL OF PHARMACY",
+            " OF MEDICINE AND SCIENCE",
+            " - DENVER AND HSC",
+            " - BOTHELL CAMPUS/SEATTLE CAMPUS/TACOMA CAMPUS",
+            " FOR MEDICAL SCIENCES",
+            " - CHAPEL HILL",
+            " - WEST LAFAYETTE",
+            " - KINGSTON",
+            " - MAIN CAMPUS",
+            " \\(FOREIGN\\) INSTITUTION",
+            sep = "|"
+        ),
         replacement = ""
     )
 
@@ -315,7 +306,7 @@ df_interests <- data_demog %>%
 
 ```
 
-```{r}
+```{r score_table}
 data_demog %>%
     left_join(int_median, by = "cas_id") %>%
     # left_join(df_bullet, by = "cas_id") %>%
@@ -356,13 +347,15 @@ data_demog %>%
             "GPA",
             "Interests"
         ),
-        caption = "Score Summary"
+        caption = "PGY1 Candidate Score Summary"
     ) %>%
-    kable_styling(latex_options = "scale_down") 
+    kable_styling(
+        latex_options = "scale_down"
+    ) 
 
 ```
 
-```{r, fig.width=10, fig.height=6}
+```{r, fig.cap="PGY1 Interview Scores. The line represents the median score for each category.", fig.width=10, fig.height=7}
 lvl <- c(
     "total",
     "fit",
