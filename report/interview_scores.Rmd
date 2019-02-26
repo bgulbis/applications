@@ -30,7 +30,7 @@ data_demog <- raw_apps %>%
         school_score = custom_field_school_score,
         tmc_lor = `custom_field_mh-tmc_rec`
     ) %>%
-    mutate_at("tmc_lor", funs(. == "Y")) %>%
+    mutate_at("tmc_lor", list(~. == "Y")) %>%
     mutate_at(
         c("interest_1", "interest_2", "interest_3"), 
         str_replace_all, 
@@ -185,10 +185,10 @@ median_quant <- function(x, cols = c("remarks", "score")) {
     summarize_at(
         x,
         cols, 
-        funs(
-            median, 
-            p25 = quantile(., 0.25),
-            p75 = quantile(., 0.75)
+        list(
+            ~median, 
+            p25 = ~quantile(., 0.25),
+            p75 = ~quantile(., 0.75)
         ),
         na.rm = TRUE
     )
