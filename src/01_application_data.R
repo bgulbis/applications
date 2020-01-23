@@ -1,6 +1,6 @@
 library(tidyverse)
 
-raw_apps <- read_csv("data/raw/2019/pgy1_application_scores.csv")
+raw_apps <- read_csv("data/raw/2020/pgy1_application_scores.csv")
     # filter(!(last_name %in% c("Ju", "Kessinger", "Rakouki", "Zidaru")))
 
 # make tidy data sets
@@ -315,13 +315,13 @@ data_interests <- total_score %>%
     ) %>%
     select(-tmp_pref)
 
-write_csv(total_score, "data/external/2019_applications.csv")
+write_csv(total_score, "data/external/2020_applications.csv")
 
-write_csv(data_app_scores, "data/external/2019_application_scores.csv")
-write_csv(data_vidyo_scores, "data/external/2019_vidyo_scores.csv")
-write_csv(data_interests, "data/external/2019_applicant_interests.csv")
+write_csv(data_app_scores, "data/external/2020_application_scores.csv")
+write_csv(data_vidyo_scores, "data/external/2020_vidyo_scores.csv")
+write_csv(data_interests, "data/external/2020_applicant_interests.csv")
 
 openxlsx::write.xlsx(
     total_score,
-    "data/external/2019_applications.xlsx"
+    "data/external/2020_applications.xlsx"
 )
