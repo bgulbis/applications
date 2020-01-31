@@ -1,0 +1,84 @@
+---
+title: "Phase 2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+
+scores <- read_excel("../data/external/2019_phase2_interview_scores.xlsx") %>%
+    filter(
+        designation == "PGY 1 - Phase II",
+        !is.na(leadership_1)
+    ) %>%
+    rowwise() %>%
+    mutate(
+        interview_score = sum(
+            leadership_1,
+            leadership_2,
+            preceptor_1,
+            preceptor_2,
+            mmi_1,
+            mmi_2,
+            residents_1,
+            residents_2,
+            na.rm = TRUE
+        ),
+        median_fit = median(
+            leadership_fit_1,
+            leadership_fit_2,
+            preceptor_fit_1,
+            preceptor_fit_2,
+            mmi_fit_1,
+            mmi_fit_2,
+            residents_fit_1,
+            residents_fit_2,
+            na.rm = TRUE
+        ),
+        fit_max = max(
+            leadership_fit_1,
+            leadership_fit_2,
+            preceptor_fit_1,
+            preceptor_fit_2,
+            mmi_fit_1,
+            mmi_fit_2,
+            residents_fit_1,
+            residents_fit_2,
+            na.rm = TRUE
+        ),
+        fit_min = min(
+            leadership_fit_1,
+            leadership_fit_2,
+            preceptor_fit_1,
+            preceptor_fit_2,
+            mmi_fit_1,
+            mmi_fit_2,
+            residents_fit_1,
+            residents_fit_2,
+            na.rm = TRUE
+        )
+    ) %>%
+    arrange(desc(median_fit), desc(interview_score)) %>%
+    select(
+        last_name,
+        first_name,
+        pharmacy_school,
+        gpa,
+        interview_score,
+        median_fit,
+        fit_max,
+        fit_min,
+        application_score,
+        application_fit,
+        everything(),
+        -designation
+    )
+
+openxlsx::write.xlsx(scores, "../data/external/2019_phase2_scores.xlsx")
+```
+

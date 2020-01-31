@@ -1,5 +1,5 @@
 *.csv
 *.csv.gz
 *.Rds
-*.xslx
-*.xsl
+*.xlsx
+*.xls
