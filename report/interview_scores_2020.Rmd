@@ -123,7 +123,8 @@ data_interview_scores <- raw_apps %>%
         contains("leadership"),
         contains("preceptor"),
         contains("mmi_1-2"),
-        contains("residents")
+        contains("residents"),
+        contains("admin")
     ) %>%
     gather(key = key, value = value, -cas_id) %>%
     mutate_at(
@@ -228,6 +229,7 @@ int_median <- data_interview_scores %>%
             mmi, 
             preceptor, 
             residents, 
+            admin,
             na.rm = TRUE
         )
     )
@@ -240,6 +242,7 @@ int_totals <- int_median %>%
             "mmi", 
             "preceptor", 
             "residents", 
+            "admin",
             "total"
         )
     ) %>%
@@ -322,6 +325,7 @@ data_demog %>%
         preceptor,
         mmi,
         residents,
+        admin,
         app_score,
         gpa,
         interests
@@ -342,6 +346,7 @@ data_demog %>%
             "Precept", 
             "MMI",
             "Resident",
+            "Admin",
             "App",
             "GPA",
             "Interests"
@@ -361,7 +366,8 @@ lvl <- c(
     "leadership",
     "preceptor",
     "mmi",
-    "residents"
+    "residents",
+    "admin"
 )
 
 med_fit <- df_fit %>%
