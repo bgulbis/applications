@@ -34,11 +34,11 @@ data_app_scores <- raw_apps |>
 # create adjusted scores to normalize for different reviewers
 
 all_app_median <- data_app_scores |>
-    summarize(across(c(remark, score), median, na.rm = TRUE))
+    summarize(across(c(remark, score), \(x) median(x, na.rm = TRUE)))
 
 reviewer_adjust <- data_app_scores |>
     group_by(reviewer) |>
-    summarize(across(c(remark, score), median, na.rm = TRUE)) |>
+    summarize(across(c(remark, score), \(x) median(x, na.rm = TRUE))) |>
     mutate(reviewer_adjustment = (all_app_median$score - score) * 0.5) |>
     select(reviewer, reviewer_adjustment)
 
@@ -46,7 +46,7 @@ app_median <- data_app_scores |>
     left_join(reviewer_adjust, by = "reviewer") |>
     mutate(score_adj = score + reviewer_adjustment) |>
     group_by(cas_id) |>
-    summarize(across(c(remark, score, score_adj), median, na.rm = TRUE))
+    summarize(across(c(remark, score, score_adj), \(x) median(x, na.rm = TRUE)))
 
 df_app_score <- data_app_scores |>
     left_join(reviewer_adjust, by = "reviewer") |>
@@ -62,7 +62,7 @@ df_low_fit <- data_app_scores |>
     select(cas_id, n, remark) |>
     mutate(low_fit = remark <= 2) |>
     group_by(cas_id) |>
-    summarize(across(low_fit, sum, na.rm = TRUE))
+    summarize(across(low_fit, \(x) sum(x, na.rm = TRUE)))
 
 total_score <- data_demog |>
     left_join(app_median, by = "cas_id") |>
@@ -70,7 +70,7 @@ total_score <- data_demog |>
     # left_join(df_app_remark, by = "cas_id") |>
     left_join(df_low_fit, by = "cas_id") |>
     # left_join(df_video, by = "cas_id") |>
-    group_by(cas_id) |>
+    # group_by(cas_id) |>
     # mutate(app_name = str_c(last_name, first_name, sep = ", ")) |>
     rename(fit_median = remark, score_median = score, score_adj_median = score_adj) |>
     arrange(desc(score_adj_median)) |>
